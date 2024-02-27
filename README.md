@@ -50,3 +50,18 @@ python_git_00:
 			 удаления записей в словаре.
 			# Часть 3. GUI интерфейс и скрипт для проверки правильности сопоставления 
 			 иностранных слов и значений, выведенных в случайном порядке.
+			 
+	Коммент 6:
+		# GUI, пример message = StringVar, METANIT.COM
+			https://metanit.com/python/tkinter/2.3.php
+		# События Enter и пробел в работе с однострочным текстовым полем
+			https://dzen.ru/a/Xt5wuLkz1xX6BfhA?experiment=919795
+		# Автоматическое обновление функции методом after()
+			https://issues.su/obnovit-okno-tkinter-v-python/
+			# Старт и остановка методом after_cancel() безконечного цикла
+				автоматического обновления.
+			# События bind. Левая кнопка мыши (<Button-1>)
+				https://stackoverflow.com/questions/25702094/tkinter-after-cancel-in-python
+		# Модуль datetime. Автоматическое определение дня недели.
+			https://pythonworld.ru/moduli/modul-datetime.html
+			https://pythonru.com/primery/kak-ispolzovat-modul-datetime-v-python
