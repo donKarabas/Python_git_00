@@ -1,216 +1,251 @@
 
-# GUI, пример message = StringVar, METANIT.COM
+import tkinter as tk
+from tkinter import ttk     # модуль расширения, который имеет виджет treeview
+import sqlite3      # Импортируем модуль sqlite для создания БД
 
-from tkinter import *
-from tkinter import ttk
+class Main(tk.Frame):   # Frame - объект библиотеки tkinter, от которого наследуется класс главного окна
+    def __init__(self, root):   # Конструктор класса
+        super().__init__(root)  # Метод super() отыскивает базовый класс у класса Main() и возвращает его
+        self.init_main()    # Вызываем функцию из конструктора класса.
+        self.db = db    # созданный экземпляр класса подаём в конструктор класса Main
+        self.view_records() # при запуске программы в первый раз вызываем из конструктора класса Main
 
-root = Tk()
-root.title("METANIT.COM")
-root.geometry("250x150")
+    def init_main(self):    # будем хранить и инициализировать все объекты графического интерфейса
+        toolbar = tk.Frame(bg='#d7d8e0', bd=2)  # Создаём панель инструментов.
+        toolbar.pack(side=tk.TOP, fill=tk.X)    # панель в верхней части окна, растянет панель по горизонтали
 
-message = StringVar()
+        self.add_img = tk.PhotoImage(file='add3.png')   # Вызываем класс, который умеет читать изображения.
+        btn_open_dialog = tk.Button(toolbar, text="Добавить позицию", command=self.open_dialog, bg='#d7d8e0', bd=2,
+                                    compound=tk.TOP, image=self.add_img)    # код кнопки, её атрибуты
+        btn_open_dialog.pack(side=tk.LEFT)
 
-label = ttk.Label(textvariable=message)     # строка над вводом
-label.pack(anchor=NW, padx=6, pady=6)
+        # Добавляем кнопку "Редактировать" в тулбар главного окна программы.
+        self.update_img = tk.PhotoImage(file='update2.png')    # Укажем класс для переменной и укажем путь к иконке.
+        btn_edit_dialog = tk.Button(toolbar, text='Редактировать', bg='#d7d8e0', bd=0, image=self.update_img,
+                                    compound=tk.TOP, command=self.open_update_dialog)
+        btn_edit_dialog.pack(side=tk.LEFT)
 
-entry = ttk.Entry(textvariable=message)     # Поле для ввода
-entry.pack(anchor=NW, padx=6, pady=6)
+        # Кнопка, которая будет вызывать функцию delete_records.
+        self.delete_img = tk.PhotoImage(file='delete2.png')
+        btn_delete = tk.Button(toolbar, text='Удалить позицию', bg='#d7d8e0', bd=0, image=self.delete_img,
+                               compound=tk.TOP, command=self.delete_records)
+        btn_delete.pack(side=tk.LEFT)
 
-button = ttk.Button(textvariable=message)           # Кнопка
-button.pack(side=LEFT, anchor=N, padx=6, pady=6)
+        # Кнопка "Поиск"
+        self.search_img = tk.PhotoImage(file='search2.png')     # Добавим кнопку в toolbar, вызывающую окно поиска.
+        btn_search = tk.Button(toolbar, text='Поиск', bg='#d7d8e0', bd=0, image=self.search_img,
+                               compound=tk.TOP, command=self.open_search_dialog)
+        btn_search.pack(side=tk.LEFT)
 
-root.mainloop()
+        # Кнопка "Обновить", которая будет вызывать функцию view_records.
+        self.refresh_img = tk.PhotoImage(file='refresh2.png')
+        btn_refresh = tk.Button(toolbar, text='Обновить', bg='#d7d8e0', bd=0, image=self.refresh_img,
+                                    compound=tk.TOP, command=self.view_records)
+        btn_refresh.pack(side=tk.LEFT)
 
-#------------------------------------------------
-# События Enter и пробел в работе с однострочным текстовым полем
-# https://dzen.ru/a/Xt5wuLkz1xX6BfhA?experiment=919795
+        # Добавим виджет treeview на главное окно программы.
+        self.tree = ttk.Treeview(self, columns=('ID', 'description', 'costs', 'total'), height=15, show='headings')
 
-from tkinter import *
+        # Добавим параметры колонкам, которые указали в кортеже.
+        self.tree.column('ID', width=30, anchor=tk.CENTER)
+        self.tree.column('description', width=365, anchor=tk.CENTER)
+        self.tree.column('costs', width=250, anchor=tk.CENTER)
+        self.tree.column('total', width=100, anchor=tk.CENTER)
 
-root = Tk()
-root.title('My first GUI')
-root.geometry('350x250')
+        # Даём привычное название колонкам.
+        self.tree.heading('ID', text='ID')
+        self.tree.heading('description', text='Наименование')
+        self.tree.heading('costs', text='доход/расход')
+        self.tree.heading('total', text='Сумма')
 
-def get(event):     # Срабатывает, когда нажимаем Enter
-    a = en_1.get()  # Записываем введённый текст в переменную "а"
-    print(a)
+        # Чтобы виджеты treeview отображались в главном окне, применим метод pack.
+        self.tree.pack(side=tk.LEFT)    # Выравнивание слева для добавления полосы прокрутки.
 
-def insert(event):      # Срабатывает, когда нажимаем пробел
-    en_1.insert(0, ' World ')   # Вставляет текст в текстовое поле
+        # Создание полосы прокрутки виджетом scrollbar.
+        scroll = tk.Scrollbar(self, command=self.tree.yview)    # Позволяет прокрутить содержимое.
+        scroll.pack(side=tk.LEFT, fill=tk.Y)    # Растягивание по оси Y, т.е. по вертикали.
+        self.tree.configure(yscrollcommand=scroll.set)  # Конфигурация. Связывание перемещения с виджетом Treeview,
+                                                                                        # движение самого scrollbar.
+    # Промежуточная функция records, которая будет служить в качестве вызова двух других функций
+    def records(self, description, costs, total):
+        self.db.insert_data(description, costs, total)  # Вызовем из функции records функцию insert_data класса DB.
+        self.view_records() # после каждого добавления поля мы выполняем функцию для отображения в виджете Treeview
 
-en_1 = Entry(font='Hack 12')
-en_1.bind('<Return>', get)      # Обработчик событий нажатия Enter
-en_1.bind('<space>', insert)    # Обработчик событий нажатия пробел
-en_1.pack()
-root.mainloop()
+    # Функция, которая будет выполнять действие по редактированию или обновлению записей в базе данных finance.
+    def update_record(self, description, costs, total):
+        #SQL-запрос, который отвечает за обновление полей таблицы базы данных finance.
+        self.db.c.execute('''UPDATE finance SET description=?, costs=?, total=? WHERE ID=?''',
+                          (description, costs, total, self.tree.set(self.tree.selection()[0], '#1')))
+        self.db.conn.commit()
+        self.view_records()     # Чтобы отобразить в таблице главного окна обновлённую информацию в базе.
 
-#---
-# Код событий Enter и пробел, оформленный в класс
+    # Функция, чтобы отобразить информацию из базы данных в виджете treeview главного окна программы.
+    def view_records(self):
+        self.db.c.execute('''SELECT * FROM finance''')  # SELECT запрос из таблицы finance.
+        # Генератор списка, цикл получения строк и их последующего удаления.
+        [self.tree.delete(i) for i in self.tree.get_children()]
+        # Генератор списка, чтобы отобразить содержимое базы данных.
+        [self.tree.insert('', 'end', values=row) for row in self.db.c.fetchall()]
 
-from tkinter import *
+    # Функция, чтобы из таблицы виджета Treeview мы могли удалять записи.
+    def delete_records(self):
+        # Цикл, чтобы удалять по несколько выделенных записей одновременно.
+        for selection_item in self.tree.selection():
+            self.db.c.execute('''DELETE FROM finance WHERE id=?''', (self.tree.set(selection_item,
+                                                                                   '#1'),))
+        self.db.conn.commit()   # Сохраняем изменения.
+        self.view_records()     # Чтобы отобразить в таблице главного окна обновлённую информацию БД.
 
-class MyFirstGui:
-    def __init__(self):
-        self.root = Tk()
-        self.root.title('My first GUI')
-        self.root.geometry('350x250')
+    # Реализация функции поиска по наименованию в БД.
+    def search_records(self, description):  # Определим функцию, передадим на вход переменную.
+        description = ('%' + description + '%',) # Заключаем искомое слово из окна поиска в подстановочные символы.
+        self.db.c.execute('''SELECT * FROM finance WHERE description LIKE ?''', description)    # SQL-запрос
+        # Отображаем данные поиска в виджете Treeview.
+        [self.tree.delete(i) for i in self.tree.get_children()]   #  очистим содержимое виджета
+            # отображаем результаты поиска
+        [self.tree.insert('', 'end', values=row) for row in self.db.c.fetchall()]
 
-        self.en_1 = Entry(font='Hack 12')
-        self.en_1.pack()
+    def open_dialog(self):  # отвечает за вызов дочернего окна
+        Child()
 
-        self.get_event = None       # Без этих двух строчек код
-        self.insert_event = None    # тоже работает нормально
+    def open_update_dialog(self):   # Будет выполняться по нажатию кнопки "Редактировать" и вызывать класс Update.
+        Update()
 
-        self.root.bind('<Return>', self.get)
-        self.root.bind('<space>', self.insert)
+    def open_search_dialog(self):   # Будет вызывать окно поиска по нажатию кнопки с главного окна программы.
+        Search()
 
-    def get(self, event):
-        a = self.en_1.get()
-        print(a)
 
-    def insert(self, event):
-        self.en_1.insert(0, ' World ')
+class Child(tk.Toplevel):   # Создаём класс дочернего окна, наследуемся от объекта Toplevel.
+    def __init__(self):     # Создаём конструктор класса, прописываем метод super
+        super().__init__(root)
+        self.init_child()   # вызов функции init_child()
+        self.view = app    # передадим класс Main в класс Child
+
+    def init_child(self):   # Пишем функцию, в которой будем инициализировать обекты и виджеты окна.
+        self.title('Добавить расходы/доходы')
+        self.geometry('500x220+400+300')
+        self.resizable(False, False)
+
+        # Подписываем поля ввода с помощью виджета Label.
+        label_description = tk.Label(self, text='Наименование: ')
+        label_description.place(x=50, y=50)
+        label_select = tk.Label(self, text='Статья д./р.: ')
+        label_select.place(x=50, y=80)
+        label_sum = tk.Label(self, text='Сумма: ')
+        label_sum.place(x=50, y=110)
+
+        self.entry_description = ttk.Entry(self)    # Виджет для организации полей ввода доходов или затрат
+        self.entry_description.place(x=200, y=50)   # координаты места расположения виджета
+
+        self.entry_many = ttk.Entry(self)       # Поле для ввода суммы денег.
+        self.entry_many.place(x=200, y=110)
+
+        self.combobox = ttk.Combobox(self, values=[u'Доход', u'Расход'])    # выпадающий список
+        self.combobox.current(0)    # отображение по умолчанию
+        self.combobox.place(x=200, y=80)
+
+        btn_cancel = ttk.Button(self, text='Закрыть', command=self.destroy) # Кнопка закрытия дочернего окна
+        btn_cancel.place(x=310, y=170)
+
+        self.btn_ok = ttk.Button(self, text='Добавить')  # Кнопка добавления введённых данных
+        self.btn_ok.place(x=200, y=170)
+        # Укажем, чтобы кнопка срабатывала по нажатию левой кнопки мыши.
+        # С помощью метода get получаем значение из виджетов и сразу же передаём в функцию records
+        self.btn_ok.bind('<Button-1>', lambda event: self.view.records(self.entry_description.get(),
+                                                                       self.combobox.get(),
+                                                                       self.entry_many.get()))
+
+        self.grab_set()     # перехватывает все события, происходящие в приложении (не работает)
+        self.focus_set()    # захватывает и удерживает фокус (не работает)
+
+
+# Реализуем отдельную форму ввода данных корректировки.
+class Update(Child):        # Создадим класс Update, который будет наследоваться от класса Child.
+    def __init__(self):     # Создаём конструктор класса.
+        super().__init__()  # Прописываем метод super.
+        # Чтобы изменения в графическом интерфейсе отобразились пользователю,
+        self.init_edit()    # вызовем функцию init_edit из конструктора класса Update.
+        # Чтобы обращаться к функциям из класса Main, передадим его в тот же конструктор класса Update.
+        self.view = app
+        self.db = db        # Чтобы из класса Update обращаться в класс DB, передадим его в данный класс.
+        self.default_data()     # Вызовем функцию в конструкторе класса.
+
+    def init_edit(self):    # Изменим графическую часть окна.
+        self.title('Редактировать позицию')
+        btn_edit = ttk.Button(self, text='Редактировать')
+        btn_edit.place(x=170, y=170)
+        # По нажатию кнопки "Редактировать" необходимо передать в функцию update_record данные из полей ввода.
+        btn_edit.bind('<Button-1>', lambda event: self.view.update_record(self.entry_description.get(),
+                                                                          self.combobox.get(),
+                                                                          self.entry_many.get()))
+        self.btn_ok.destroy()   # Чтобы убрать кнопку "ок" используем метод destroy.
+
+    # Извлекает из БД запись, которая в данный момент выделена в таблице основного окна,
+    # и помещает информацию в соответствующие поля.
+    def default_data(self):
+        # Выполним SQL-запрос, который вернёт нам значение из выделенной строки в таблице.
+        self.db.c.execute('''SELECT * FROM finance WHERE id=?''',
+                          (self.view.tree.set(self.view.tree.selection()[0], '#1'),))
+        row = self.db.c.fetchone()  # В переменной будем сохранять значение полей результата запроса.
+        self.entry_description.insert(0, row[1])   # В названия полей ввода ставим значения, полученные из БД.
+        # Условная конструкция, для сравнения полученного из кортежа значения с индексом 2 со словом "доход".
+        if row[2] != 'Доход':
+            self.combobox.current(1)
+        self.entry_many.insert(0, row[3])   # По подобию поля entry_description.
+
+
+class Search(tk.Toplevel):   # Класс для поиска в БД. Наследуется от объекта Toplevel.
+    def __init__(self):     # Конструктор класса.
+        super().__init__()    # Прописываем метод super.
+        self.init_search()    # Вызываем функцию через конструктор класса.
+        self.view = app     # Передаём класс Main в класс Search.
+
+    def init_search(self):  # Функция, которой будем инициализировать все графические объекты интерфейса.
+        self.title('Поиск')     # Имя окна
+        self.geometry('500x200+400+300')    # Размер
+        self.resizable(False, False)    # Запрет изменения размера.
+
+        label_search = tk.Label(self, text='Поиск')     # Добавим виджет label с надписью "Поиск".
+        label_search.place(x=120, y=50)
+
+        self.entry_search = ttk.Entry(self)     # Добавим поле ввода данных для поиска.
+        self.entry_search.place(x=180, y=50, width=200)
+
+        btn_cancel = ttk.Button(self, text='Закрыть', command=self.destroy)     # Кнопка закрытия окна.
+        btn_cancel.place(x=290, y=100)
+
+        btn_search = ttk.Button(self, text='Поиск')     # Кнопка поиска
+        btn_search.place(x=180, y=100)
+        # Добавим вызов функции search_records в кнопку поиска в том же окне поиска.
+        btn_search.bind('<Button-1>', lambda event: self.view.search_records(self.entry_search.get()))
+        # Чтобы после нажатия кнопки "Поиск" окно автоматически закрывалось, добавим ещё один метод.
+        # Параметр add, позволит вешать на одну кнопку вызов нескольких функций.
+        btn_search.bind('<Button-1>', lambda event: self.destroy(), add='+')
+
+
+class DB:       # Реализуем класс, который будет отвечать за работу с БД.
+    def __init__(self):     # конструктор класса
+        self.conn = sqlite3.connect('finance.db')   # Создадим соединение с БД методом connect
+        self.c = self.conn.cursor()     # Создание объекта cursor для взаимодействия с БД.
+        self.c.execute('''CREATE TABLE IF NOT EXISTS finance
+                        (id INTEGER PRIMARY KEY,
+                        description TEXT,
+                        costs TEXT,
+                        total REAL)''')     # Создание таблицы БД.
+        self.conn.commit()      # Сохраняем изменения в БД методом commit.
+
+    def insert_data(self, description, costs, total):   # функция, на вход значения из трёх переменных
+        self.c.execute('''INSERT INTO finance(description, costs, total) VALUES (?, ?, ?)''',
+                       (description, costs, total))
+        self.conn.commit()
 
 
 if __name__ == '__main__':
-    my_first_gui = MyFirstGui()
-    my_first_gui.root.mainloop()
-
-#------------------------------------------
-# Автоматическое обновление функции методом after()
-# https://issues.su/obnovit-okno-tkinter-v-python/
-
-from tkinter import *
-
-def update_window():
-    label.config(text="Новый текст")
-    root.after(5000, update_window)  # Обновление каждые 5 секунд
-
-root = Tk()
-label = Label(root, text="Исходный текст")
-label.pack()
-
-root.after(5000, update_window)  # Запуск первого обновления
-
-root.mainloop()
-
-#---
-# Более верный код для запуска автоматического обновления, где tk.after()
-# переменная, а не повторяющаяся функция.
-# https://stackoverflow.com/questions/25702094/tkinter-after-cancel-in-python
-
-from tkinter import *
-
-root = Tk()
-def update_window():
-    label.config(text="Новый текст")
-    print('обновление')
-    up_text = root.after(2000, update_window)   # Обновление каждые 5 секунд
-
-up_text = root.after(2000, update_window)   # Запуск первого обновления
-
-label = Label(root, text="Исходный текст")
-label.pack()
-
-root.mainloop()
-
-#---
-# Старт и остановка методом after_cancel() безконечного цикла
-# автоматического обновления. Код оформлен в class Update:
-
-from tkinter import *
-
-class Update:
-    def __init__(self):
-        self.root = Tk()
-        self.label = Label(self.root, text="Исходный текст")
-        self.label.pack()
-
-        self.start_button = Button(self.root, text="Начать обновление", command=self.update_window)
-        self.start_button.pack()
-
-        self.stop_button = Button(self.root, text="Остановить обновление", command=self.stop_update)
-        self.stop_button.pack()
-
-    def update_window(self):
-        self.label.config(text="Новый текст")
-        self.up_text = self.root.after(2000, self.update_window)  # Обновление каждые 2 секунды
-        print('start')
-
-    def stop_update(self):
-        self.root.after_cancel(self.up_text)  # Остановка обновлений
-        print('stop')
-
-
-if __name__ == '__main__':
-    myupdate = Update()
-    myupdate.root.mainloop()
-
-#---
-# События bind. Левая кнопка мыши (<Button-1>)
-# https://stackoverflow.com/questions/25702094/tkinter-after-cancel-in-python
-
-from tkinter import *
-import random
-
-tk = Tk()
-canvas = Canvas(tk, width=1920, height=1080, background="grey")
-canvas.pack()
-
-def xy(event):
-    xm, ym = event.x, event.y
-
-def task():
-    w=random.randint(1,1000)
-    h=random.randint(1,1000)
-    canvas.create_rectangle(w,h,w+150,h+150)
-    def callback(event):
-        if True:
-            print("clicked2")
-            # 'solve' is used here to stop the after... methods.
-            tk.after_cancel(solve)
-    canvas.bind("<Button-1>",callback)   # <Button-1> - клик левой кнопкой мыши
-    solve = tk.after(1000, task)
-# above and below tk.after is set to 'solve' a variable.
-solve = tk.after(1000, task)
-
-tk.mainloop()
-
-#------------------------------------------
-# Модуль datetime. Автоматическое определение дня недели.
-# https://pythonworld.ru/moduli/modul-datetime.html
-# https://pythonru.com/primery/kak-ispolzovat-modul-datetime-v-python
-
-import datetime
-class WorkMonth:
-    __MS = ['Январь', 'Февраль', 'Март', 'Апрель',
-                'Май', 'Июнь', 'Июль', 'Август',
-                'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
-
-    __WS = ['пн', 'вт', 'ср', 'чт',
-                'пт', 'сб', 'вс']
-
-    def __init__(self):
-        self.data_method()
-
-    def data_method(self):
-        d_c = int(input('Введите число: '))
-        monts_choice = input('Введите месяц: ')
-        year_choice = int(input('Введите год: '))
-
-        date1 = datetime.datetime(year_choice, self.__MS.index(monts_choice) + 1, d_c)
-        date = datetime.date.today()
-        ind = (date1.weekday())
-        dayweek = self.__WS[ind]
-
-        print(date)     # сегодняшняя - (2024-02-27)
-        print(date1)    # введённая - 2024-01-29 00:00:00
-        print(ind)      # индекс дня недели (0-6) - 0
-        print(dayweek)  # день недели - пн
-
-
-day1 = WorkMonth()
-
-# Введите число: 29
-# Введите месяц: Январь
-# Введите год: 2024
+    root = tk.Tk()      # Инструкция создаёт корневое окно программы
+    db = DB()  # Экземпляр класса DB для того, чтобы обращаться к функциям класса DB из класса Main
+    app = Main(root)
+    app.pack()
+    root.title("Household finance")
+    root.geometry('765x450+300+200')    # Размеры окна и точку, где оно будет появляться
+    root.resizable(False, False)
+    root.mainloop()

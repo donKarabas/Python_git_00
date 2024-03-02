@@ -65,3 +65,15 @@ python_git_00:
 		# Модуль datetime. Автоматическое определение дня недели.
 			https://pythonworld.ru/moduli/modul-datetime.html
 			https://pythonru.com/primery/kak-ispolzovat-modul-datetime-v-python
+			
+	Коммент 7:
+		# Household finance - GUI (с комментариями в коде). ITH
+			ютуб ролики по приложению
+			https://www.youtube.com/playlist?list=PL4sJ_PtqW49AVCkGAVWQXsXaiRUlruX-G
+			гитхаб
+			https://gist.github.com/ithobbies
+			https://github.com/ithobbies/household_finance
+			каналы
+			https://www.youtube.com/@ITHobbies - ютуб
+			https://vk.com/ithobbies - вк
+			https://t.me/ithobbies - телеграмм
